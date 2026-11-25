@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Manda o stampa</title>
+<style>
+:root{--bg:#f3f1f2;--card:#fff;--fg:#221a1d;--mute:#6f6468;--acc:#7a1f35;--acc-fg:#fff;--wa:#1f8a4c;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#171214;--card:#221b1e;--fg:#f1eaed;--mute:#a99ca1;--acc:#d9718b;--acc-fg:#1a0d12;--wa:#4cc985;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,sans-serif;padding:calc(16px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+main{max-width:520px;margin:0 auto;display:grid;gap:12px}
+h1{font-size:24px;margin:0}
+p{margin:0;color:var(--mute);font-size:14px}
+button{border:0;border-radius:14px;padding:18px;font:600 18px -apple-system,system-ui,sans-serif;cursor:pointer;width:100%;color:#fff}
+#wa{background:var(--wa)}#pantum,#hp{background:var(--acc);color:var(--acc-fg)}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.nome{background:var(--card);border-radius:12px;padding:12px 14px;font-weight:600}
+iframe{width:100%;height:60vh;border:0;border-radius:12px;background:#fff}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Manda o stampa</h1>
+  <div class="nome" id="nome">Nessun PDF</div>
+  <div id="ok" hidden style="display:grid;gap:12px">
+    <button id="wa">WhatsApp o altro</button>
+    <button id="pantum">🖨 Stampa Pantum</button>
+    <button id="hp">🖨 Stampa HP</button>
+    <p id="msg"></p>
+    <iframe id="vista" title="Anteprima del PDF"></iframe>
+  </div>
+  <p id="vuoto">Apri questa pagina dal pulsante "Manda o stampa" dell'app Calcolo Stipendio.</p>
+</main>
+<script>
+// Il PDF arriva dentro il link (#nome|base64) e resta solo in questa pagina: niente server, niente salvataggi.
+const h=decodeURIComponent(location.hash.slice(1)),i=h.indexOf("|");
+history.replaceState(null,"",location.pathname); // toglie il PDF dalla cronologia
+if(i>0){
+  const nome=h.slice(0,i),b64=h.slice(i+1).replace(/-/g,"+").replace(/_/g,"/");
+  const bin=atob(b64),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);
+  const file=new File([u],nome,{type:"application/pdf"}),url=URL.createObjectURL(file);
+  document.getElementById("nome").textContent=nome;
+  document.getElementById("ok").hidden=false;document.getElementById("vuoto").hidden=true;
+  document.getElementById("vista").src=url;
+  const msg=t=>document.getElementById("msg").textContent=t;
+  document.getElementById("wa").onclick=async()=>{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]})}catch(e){}}
+    else{location.href=url;msg("Il telefono non permette di condividere da qui: si apre il PDF, poi tocca Condividi.")}
+  };
+  // I Comandi leggono il PDF dagli appunti (testo Base64): Ottieni appunti → Decodifica Base64 → Stampa
+  const stampa=nomeCmd=>async()=>{
+    try{await navigator.clipboard.writeText(b64)}catch(e){msg("Non riesco a copiare il PDF. Riprova.");return}
+    location.href="shortcuts://run-shortcut?name="+encodeURIComponent(nomeCmd)+"&input=clipboard";
+  };
+  document.getElementById("pantum").onclick=stampa("Stampa Pantum");
+  document.getElementById("hp").onclick=stampa("Stampa HP");
+}
+</script>
+</body>
+</html>
