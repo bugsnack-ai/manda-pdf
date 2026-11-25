@@ -16,7 +16,7 @@ button{border:0;border-radius:14px;padding:18px;font:600 18px -apple-system,syst
 #wa{background:var(--wa)}#pantum,#hp{background:var(--acc);color:var(--acc-fg)}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 .nome{background:var(--card);border-radius:12px;padding:12px 14px;font-weight:600}
-iframe{width:100%;height:60vh;border:0;border-radius:12px;background:#fff}
+#vista{display:grid;gap:10px}#vista canvas{width:100%;height:auto;border-radius:8px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -29,10 +29,12 @@ iframe{width:100%;height:60vh;border:0;border-radius:12px;background:#fff}
     <button id="pantum">🖨 Stampa Pantum</button>
     <button id="hp">🖨 Stampa HP</button>
     <p id="msg"></p>
-    <iframe id="vista" title="Anteprima del PDF"></iframe>
+    <div id="vista" aria-label="Anteprima del PDF"><p>Preparo l’anteprima…</p></div>
   </div>
   <p id="vuoto">Apri questa pagina dal pulsante "Manda o stampa" dell'app Calcolo Stipendio.</p>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script>
 // Il PDF arriva dentro il link (#nome|base64) e resta solo in questa pagina: niente server, niente salvataggi.
 const h=decodeURIComponent(location.hash.slice(1)),i=h.indexOf("|");
@@ -43,7 +45,12 @@ if(i>0){
   const file=new File([u],nome,{type:"application/pdf"}),url=URL.createObjectURL(file);
   document.getElementById("nome").textContent=nome;
   document.getElementById("ok").hidden=false;document.getElementById("vuoto").hidden=true;
-  document.getElementById("vista").src=url;
+  // anteprima larga quanto lo schermo: ogni pagina disegnata intera (l'iframe su iPhone la mostrava tagliata)
+  (async()=>{const v=document.getElementById("vista");try{
+    const pdf=await pdfjsLib.getDocument({data:u.slice()}).promise,c=[];
+    for(let n=1;n<=pdf.numPages;n++){const p=await pdf.getPage(n),vp=p.getViewport({scale:2.5}),k=document.createElement("canvas");
+      k.width=vp.width;k.height=vp.height;await p.render({canvasContext:k.getContext("2d"),viewport:vp}).promise;c.push(k)}
+    v.replaceChildren(...c)}catch(e){v.innerHTML="<p>Anteprima non disponibile, ma puoi mandarlo o stamparlo lo stesso.</p>"}})();
   const msg=t=>document.getElementById("msg").textContent=t;
   document.getElementById("wa").onclick=async()=>{
     if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]})}catch(e){}}
